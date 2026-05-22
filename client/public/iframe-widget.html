@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoleStyle Promo Widget</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #ffffff; overflow: hidden; }
+    .widget {
+      padding: 10px 16px;
+      max-width: 100%;
+    }
+    .promo-banner {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8e 100%);
+      color: white;
+      border-radius: 12px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .promo-left {
+      flex: 1;
+      min-width: 200px;
+    }
+    .promo-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .promo-subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    .promo-center {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .promo-code {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 2px dashed rgba(255,255,255,0.5);
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .promo-code:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    .countdown {
+      display: flex;
+      gap: 6px;
+    }
+    .countdown-item {
+      text-align: center;
+    }
+    .countdown-value {
+      font-size: 16px;
+      font-weight: 700;
+      background: rgba(0,0,0,0.2);
+      padding: 4px 8px;
+      border-radius: 6px;
+      min-width: 36px;
+      display: inline-block;
+    }
+    .countdown-label {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+      opacity: 0.8;
+    }
+    .promo-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .promo-form {
+      display: flex;
+      gap: 6px;
+    }
+    .promo-input {
+      padding: 7px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      width: 180px;
+    }
+    .promo-input:focus {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
+    }
+    .promo-btn {
+      padding: 7px 14px;
+      background: #f59e0b;
+      color: #1e3a5f;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .promo-btn:hover {
+      background: #d97706;
+    }
+    .promo-message {
+      font-size: 11px;
+      min-height: 16px;
+      text-align: center;
+      margin-top: 4px;
+    }
+    @media (max-width: 700px) {
+      .promo-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: 12px 16px;
+        gap: 8px;
+      }
+      .promo-center { justify-content: center; }
+      .promo-right { justify-content: center; }
+      .promo-form { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="promo-banner" data-testid="iframe-promo-banner">
+      <div class="promo-left">
+        <div class="promo-title" data-testid="iframe-promo-title">🔥 Flash Sale - Limited Time!</div>
+        <div class="promo-subtitle">Use code for 20% off your entire order</div>
+      </div>
+      <div class="promo-center">
+        <div class="promo-code" data-testid="iframe-promo-code" onclick="copyCode()" title="Click to copy">SOLE20</div>
+        <div class="countdown" data-testid="iframe-countdown">
+          <div class="countdown-item">
+            <div class="countdown-value" data-testid="iframe-hours">23</div>
+            <div class="countdown-label">Hrs</div>
+          </div>
+          <div class="countdown-item">
+            <div class="countdown-value" data-testid="iframe-minutes">59</div>
+            <div class="countdown-label">Min</div>
+          </div>
+          <div class="countdown-item">
+            <div class="countdown-value" data-testid="iframe-seconds">59</div>
+            <div class="countdown-label">Sec</div>
+          </div>
+        </div>
+      </div>
+      <div class="promo-right">
+        <form class="promo-form" onsubmit="applyPromo(event)">
+          <input type="email" class="promo-input" placeholder="Email for deals" data-testid="iframe-email-input" />
+          <button type="submit" class="promo-btn" data-testid="iframe-submit-btn">Subscribe</button>
+        </form>
+      </div>
+    </div>
+    <div class="promo-message" data-testid="iframe-message"></div>
+  </div>
+
+  <script>
+    function copyCode() {
+      const code = document.querySelector('[data-testid="iframe-promo-code"]');
+      navigator.clipboard.writeText(code.textContent).catch(() => {});
+      const msg = document.querySelector('[data-testid="iframe-message"]');
+      msg.textContent = '✅ Code copied to clipboard!';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    }
+
+    function applyPromo(e) {
+      e.preventDefault();
+      const input = document.querySelector('[data-testid="iframe-email-input"]');
+      const msg = document.querySelector('[data-testid="iframe-message"]');
+      if (input.value && input.value.includes('@')) {
+        msg.textContent = '🎉 Subscribed! Check your email for exclusive deals.';
+        msg.style.color = '#16a34a';
+        input.value = '';
+      } else {
+        msg.textContent = '⚠️ Please enter a valid email address.';
+        msg.style.color = '#dc2626';
+      }
+      setTimeout(() => { msg.textContent = ''; }, 4000);
+    }
+
+    let totalSeconds = 23 * 3600 + 59 * 60 + 59;
+    function updateCountdown() {
+      if (totalSeconds <= 0) return;
+      totalSeconds--;
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      document.querySelector('[data-testid="iframe-hours"]').textContent = String(h).padStart(2, '0');
+      document.querySelector('[data-testid="iframe-minutes"]').textContent = String(m).padStart(2, '0');
+      document.querySelector('[data-testid="iframe-seconds"]').textContent = String(s).padStart(2, '0');
+    }
+    setInterval(updateCountdown, 1000);
+  </script>
+</body>
+</html>
