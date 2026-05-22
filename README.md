@@ -7,7 +7,6 @@ SoleStyle is a full-stack e-commerce shoe store demo application built with **Re
 ## Table of Contents
 
 - [Features](#features)
-- [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Available Scripts](#available-scripts)
@@ -16,6 +15,7 @@ SoleStyle is a full-stack e-commerce shoe store demo application built with **Re
 - [Product Catalog](#product-catalog)
 - [Checkout Flow](#checkout-flow)
 - [Automation Testing Support](#automation-testing-support)
+- [Tech Stack](#tech-stack)
 - [License](#license)
 
 ---
@@ -31,21 +31,6 @@ SoleStyle is a full-stack e-commerce shoe store demo application built with **Re
 - **Responsive Design** — Mobile-first layout with hamburger menu and touch-friendly UI
 - **8 Informational Pages** — About, Contact, Size Guide, Returns, Shipping, Privacy, Terms, Cookies
 - **Automation Testing Support** — Shadow DOM, Slots, iframes, and dynamic elements integrated into real pages
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui (Radix UI) |
-| **State** | TanStack Query (server state), React Context + useReducer (cart state) |
-| **Routing** | Wouter |
-| **Forms** | React Hook Form + Zod validation |
-| **Backend** | Node.js, Express.js, TypeScript (ES modules) |
-| **Data** | In-memory storage (no database required) |
-| **Schema** | Drizzle ORM type definitions + Drizzle-Zod for validation |
-| **Build** | Vite (frontend), esbuild (backend) |
 
 ---
 
@@ -257,6 +242,21 @@ SoleStyle is designed as a demo site for automation testing on both desktop and 
 | About | Value/Stats Cards | Slot | `slot-host-card` (header/body/footer) |
 
 The `/test-elements` page provides a playground and glossary documenting all special element types.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui (Radix UI) |
+| **State** | TanStack Query (server state), React Context + useReducer (cart state) |
+| **Routing** | Wouter |
+| **Forms** | React Hook Form + Zod validation |
+| **Backend** | Node.js, Express.js, TypeScript (ES modules) |
+| **Data** | In-memory storage (no database required) |
+| **Schema** | Drizzle ORM type definitions + Drizzle-Zod for validation |
+| **Build** | Vite (frontend), esbuild (backend) |
 
 ---
 
