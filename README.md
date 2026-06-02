@@ -122,7 +122,7 @@ npm install
 npm run dev
 ```
 
-The app starts on **http://localhost:5000** with hot-reload enabled (Vite HMR). Both the API and the client are served from the same port.
+The app starts on **https://lt-shoe-store.replit.app** with hot-reload enabled (Vite HMR). Both the API and the client are served from the same port.
 
 ### Building for Production
 
