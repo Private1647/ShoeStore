@@ -1,0 +1,66 @@
+# Suite sync: author/refresh the kane-cli regression suite and upload it to
+# Test Manager. Run this once after setup, and whenever qa/tests/*.md change.
+name: QA · Suite Sync (author & upload)
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Comma-separated REG ids (empty = all)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - "qa/tests/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qa-suite-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      LT_USERNAME: ${{ secrets.LT_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+      TARGET_URL: ${{ vars.QA_TARGET_URL }}
+      TM_PROJECT_ID: ${{ vars.TM_PROJECT_ID }}
+      TM_FOLDER_ID: ${{ vars.TM_FOLDER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install kane-cli + pipeline dependencies
+        run: |
+          npm install -g @testmuai/kane-cli
+          pip install -r qa/requirements.txt -q
+          kane-cli --version
+
+      - name: Authenticate and select project/folder
+        run: |
+          kane-cli login --username "$LT_USERNAME" --access-key "$LT_ACCESS_KEY"
+          kane-cli config project "$TM_PROJECT_ID"
+          kane-cli config folder "$TM_FOLDER_ID"
+          kane-cli whoami
+
+      - name: Author & upload suite (kane-cli testmd)
+        run: python qa/scripts/sync_suite.py --only "${{ inputs.only }}"
+
+      - name: Commit updated manifest + recordings
+        run: |
+          git config user.name "agentic-qa-bot"
+          git config user.email "agentic-qa@users.noreply.github.com"
+          git add -A qa
+          git diff --cached --quiet || git commit -m "chore(qa): sync regression suite to Test Manager [skip ci]"
+          git push

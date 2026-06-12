@@ -1,0 +1,8 @@
+# TestMu AI Cloud GitHub App configuration (hybrid PR flow).
+# Copy the IDs from https://integrations.lambdatest.com/githubci/install
+# Docs: https://www.testmuai.com/support/docs/github-app-integration/
+project_id: "01KTY2234CH831DGA9SNK5BE3X"   # same TM project as qa/config.yml
+folder_id: "01KTY256PH5SVZK6J13C242HHD"    # folder for App-generated test cases
+assignee: REPLACE_ME            # TestMu user id — copy from integration settings page
+environment_id: REPLACE_ME      # target environment — copy from integration settings page
+test_url: "https://lt-shoe-store.replit.app/"
