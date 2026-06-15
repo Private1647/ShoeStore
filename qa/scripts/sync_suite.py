@@ -33,11 +33,13 @@ def run_test(file: str, base_url: str, timeout_s: int = 1800) -> dict:
     CI runner has no display — without it Chrome cannot launch and kane-cli
     exits 2 (setup error) before any NDJSON is emitted.
     """
-    cmd = [
-        "kane-cli", "testmd", "run", file, "--agent", "--headless",
-        "--variables", json.dumps({"BASE_URL": {"value": base_url}}),
-    ]
-    print(f"[sync] $ {' '.join(cmd[:6])} ...", flush=True)
+    # NOTE: do NOT pass --variables BASE_URL here. The test files define BASE_URL
+    # in their frontmatter, and kane-cli treats file-defined variables as owned by
+    # the file — a conflicting --variables flag leaves {{BASE_URL}} unresolved
+    # ("No start URL provided"). The frontmatter value (the deployed URL) is what
+    # the suite should be authored against, so let the file own it.
+    cmd = ["kane-cli", "testmd", "run", file, "--agent", "--headless"]
+    print(f"[sync] $ {' '.join(cmd)}  (BASE_URL from frontmatter = {base_url})", flush=True)
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, check=False)
 
     signals = {"exit_code": proc.returncode, "share_url": "", "test_case_id": "",
