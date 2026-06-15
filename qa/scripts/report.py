@@ -204,6 +204,7 @@ def main() -> None:
 
     summary = build_summary(run, bugs_doc, cfg, impact, heal)
     write_step_summary(summary)
+    Path("reports").mkdir(parents=True, exist_ok=True)
     Path("reports/summary.md").write_text(summary + "\n", encoding="utf-8")
 
     if args.mode == "pr":

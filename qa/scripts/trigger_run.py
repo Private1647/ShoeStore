@@ -39,17 +39,39 @@ def parse_args():
     return p.parse_args()
 
 
-def resolve_test_case_ids(args, manifest) -> list[str]:
+# Test-case priority (manifest) → Test Manager test-run-instance priority.
+PRIORITY_MAP = {"P0": "High", "P1": "High", "P2": "Medium", "P3": "Low"}
+
+
+def resolve_tests(args, manifest) -> list[dict]:
+    """Return the manifest test entries to include (with title + priority)."""
+    by_id = {t["tm_test_case_id"]: t for t in manifest["tests"] if t.get("tm_test_case_id")}
     if args.mode == "impacted":
         ids = [t.strip() for t in args.test_ids.split(",") if t.strip()]
         if not ids:
             sys.exit("ERROR: --mode impacted requires --test-ids")
-        return ids
-    ids = [t["tm_test_case_id"] for t in manifest["tests"] if t.get("tm_test_case_id")]
-    if not ids:
+        # Map ids back to manifest entries for title/priority; tolerate unknowns.
+        return [by_id.get(i, {"tm_test_case_id": i, "title": f"Test {i}", "priority": "P2"})
+                for i in ids]
+    tests = [t for t in manifest["tests"] if t.get("tm_test_case_id")]
+    if not tests:
         sys.exit("ERROR: no tm_test_case_id values in qa/manifest.json — "
                  "run the qa-suite-sync workflow to author/upload the suite first.")
-    return ids
+    return tests
+
+
+def build_instances(tests: list[dict], environment_id) -> list[dict]:
+    """One Test Run instance per test case, grouped under the environment."""
+    instances = []
+    for i, t in enumerate(tests, start=1):
+        instances.append({
+            "test_case_id": t["tm_test_case_id"],
+            "environment_id": environment_id,
+            "serial_no": i,
+            "priority": PRIORITY_MAP.get(t.get("priority"), "Medium"),
+            "name": t.get("title") or t["tm_test_case_id"],
+        })
+    return instances
 
 
 def main() -> None:
@@ -61,17 +83,27 @@ def main() -> None:
 
     title = args.title or (f"{cfg['app']['name']} {args.mode} regression "
                            f"{datetime.now(timezone.utc):%Y-%m-%d %H:%M}")
-    test_case_ids = resolve_test_case_ids(args, manifest)
-    print(f"[trigger] {args.mode} run with {len(test_case_ids)} test case(s)")
+    tests = resolve_tests(args, manifest)
+    test_case_ids = [t["tm_test_case_id"] for t in tests]
+    print(f"[trigger] {args.mode} run with {len(tests)} test case(s)")
 
-    # 1. Create (or duplicate) the Test Run
+    # 1a. Resolve the execution environment (browser/OS). Reuse a pinned id if
+    #     set, else create one from the config spec.
+    env_id = tm.get("environment_id")
+    if not env_id:
+        env_id = client.create_environment(ex["environment"])
+        print(f"[trigger] created environment_id={env_id}")
+    else:
+        print(f"[trigger] using pinned environment_id={env_id}")
+
+    # 1b. Create (or duplicate) the Test Run with per-test instances.
+    instances = build_instances(tests, env_id)
     try:
         run_id = client.create_test_run(
-            name=title,
+            title=title,
             project_id=tm["project_id"],
-            test_case_ids=test_case_ids,
-            assignee=tm.get("assignee"),
-            environment_id=tm.get("environment_id"),
+            test_run_instances=instances,
+            objective=f"Automated {args.mode} regression for {cfg['app']['name']}",
         )
     except Exception as exc:  # noqa: BLE001
         if tm.get("template_test_run_id"):
@@ -101,8 +133,8 @@ def main() -> None:
     if args.replace_url:
         pattern, _, replacement = args.replace_url.partition("=")
         payload["replaced_url"] = [{"pattern_url": pattern, "replacement_url": replacement}]
-    if tm.get("environment_id"):
-        payload["environment_id"] = tm["environment_id"]
+    if env_id:
+        payload["environment_id"] = env_id
 
     resp = client.trigger_hyperexecute(payload)
     job_id = resp.get("job_id")
