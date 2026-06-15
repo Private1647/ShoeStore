@@ -1,7 +1,7 @@
 {
   "suite": "shoestore-regression",
   "description": "Source of truth linking local kane-cli testmd files to Test Manager test cases. tm_test_case_id is filled by the qa-suite-sync workflow after authoring/upload.",
-  "updated_at": "2026-06-15T14:43:14.772559+00:00",
+  "updated_at": "2026-06-15T14:58:19.794380+00:00",
   "tests": [
     {
       "id": "REG-001",
@@ -14,8 +14,8 @@
       "priority": "P1",
       "tm_test_case_id": "01KV5VASRMDY32Z4W6V7MY6P2N",
       "last_sync": {
-        "at": "2026-06-15T14:43:14.772526+00:00",
-        "status": "failed",
+        "at": "2026-06-15T14:58:19.794353+00:00",
+        "status": "passed",
         "share_url": ""
       }
     },
