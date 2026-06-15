@@ -188,7 +188,12 @@ def sync_bug_issues(bugs_doc: dict, run: dict) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["daily", "pr"], required=True)
+    ap.add_argument("--dry-run", action="store_true",
+                    help="Observe only: write the summary + artifact but make NO GitHub "
+                         "mutations (no issues, no PR comment) and never fail the gate. "
+                         "Also enabled by env QA_DRY_RUN=true.")
     args = ap.parse_args()
+    dry_run = args.dry_run or os.environ.get("QA_DRY_RUN", "").lower() in {"1", "true", "yes"}
 
     cfg = load_config()
     run = read_json("reports/run_result.json", {})
@@ -202,10 +207,14 @@ def main() -> None:
     Path("reports/summary.md").write_text(summary + "\n", encoding="utf-8")
 
     if args.mode == "pr":
-        upsert_pr_comment(summary)
         blocking = [b for b in bugs_doc.get("bugs", [])
                     if b.get("priority") in cfg["gates"]["block_on_priorities"]
                     and b.get("reg_id") not in healed_ids]
+        if dry_run:
+            print(f"[report] DRY-RUN — not posting PR comment; gate would "
+                  f"{'FAIL' if blocking else 'pass'} (blocking: {[b['reg_id'] for b in blocking]})")
+            return
+        upsert_pr_comment(summary)
         if blocking:
             print(f"[report] GATE FAILED — blocking bugs: {[b['reg_id'] for b in blocking]}")
             sys.exit(1)
@@ -215,6 +224,11 @@ def main() -> None:
             bugs_doc = {**bugs_doc,
                         "bugs": [b for b in bugs_doc["bugs"]
                                  if b.get("reg_id") not in healed_ids]}
+        if dry_run:
+            planned = [f"{b['reg_id']} ({b.get('priority')})" for b in bugs_doc.get("bugs", [])]
+            print(f"[report] DRY-RUN — not opening/closing issues; would sync "
+                  f"{len(planned)} bug issue(s): {planned}")
+            return
         sync_bug_issues(bugs_doc, run)
         print("[report] daily report complete")
 

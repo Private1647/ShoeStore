@@ -10,6 +10,10 @@ on:
       title:
         description: "Custom run title"
         required: false
+      dry_run:
+        description: "Observe only — write summary + artifact, do NOT open GitHub issues"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,7 +55,7 @@ jobs:
 
       - name: Report — summary, bug issues, recovery sync
         if: always()
-        run: python qa/scripts/report.py --mode daily
+        run: python qa/scripts/report.py --mode daily ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: Upload evidence artifact
         if: always()
