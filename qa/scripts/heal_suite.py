@@ -36,10 +36,12 @@ from lt_client import load_manifest, read_json, write_json  # noqa: E402
 def reauthor(test_file: str, base_url: str, timeout_s: int = 1800) -> dict:
     # --author is a boolean flag (force a fresh test+testcase in TMS, replace
     # local output). --headless is required so Chrome can launch on the runner.
+    # --url retargets the run at the PR's own code on localhost: it overrides the
+    # frontmatter url:/deployed URL (a --variables override cannot, since the file
+    # owns BASE_URL), so the heal re-authors against the changed code — not prod.
     cmd = [
         "kane-cli", "testmd", "run", test_file, "--agent", "--headless",
-        "--author",
-        "--variables", json.dumps({"BASE_URL": {"value": base_url}}),
+        "--author", "--url", base_url,
     ]
     print(f"[heal] re-authoring: {test_file} against {base_url}", flush=True)
     try:
