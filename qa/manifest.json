@@ -1,79 +1,147 @@
 {
   "suite": "shoestore-regression",
   "description": "Source of truth linking local kane-cli testmd files to Test Manager test cases. tm_test_case_id is filled by the qa-suite-sync workflow after authoring/upload.",
-  "updated_at": null,
+  "updated_at": "2026-06-15T14:12:56.836949+00:00",
   "tests": [
     {
       "id": "REG-001",
       "file": "qa/tests/01_homepage_smoke_test.md",
       "title": "Homepage loads with hero, navigation and product grid",
-      "features": ["navigation", "catalog"],
+      "features": [
+        "navigation",
+        "catalog"
+      ],
       "priority": "P1",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:48.264658+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-002",
       "file": "qa/tests/02_search_test.md",
       "title": "Product search returns relevant results",
-      "features": ["search"],
+      "features": [
+        "search"
+      ],
       "priority": "P1",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:49.276734+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-003",
       "file": "qa/tests/03_category_filter_test.md",
       "title": "Category and gender filters narrow the catalog",
-      "features": ["catalog", "filters"],
+      "features": [
+        "catalog",
+        "filters"
+      ],
       "priority": "P2",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:50.436951+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-004",
       "file": "qa/tests/04_product_detail_test.md",
       "title": "Product detail shows name, price, sizes and description",
-      "features": ["product-detail", "catalog"],
+      "features": [
+        "product-detail",
+        "catalog"
+      ],
       "priority": "P1",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:51.652729+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-005",
       "file": "qa/tests/05_add_to_cart_test.md",
       "title": "Add to cart updates cart count and slideout contents",
-      "features": ["cart"],
+      "features": [
+        "cart"
+      ],
       "priority": "P0",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:52.658224+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-006",
       "file": "qa/tests/06_cart_update_remove_test.md",
       "title": "Cart quantity update and item removal recalculate totals",
-      "features": ["cart"],
+      "features": [
+        "cart"
+      ],
       "priority": "P1",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:53.819266+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-007",
       "file": "qa/tests/07_checkout_happy_path_test.md",
       "title": "Checkout with valid shipping and test card reaches order confirmation",
-      "features": ["checkout", "cart"],
+      "features": [
+        "checkout",
+        "cart"
+      ],
       "priority": "P0",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:54.902634+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-008",
       "file": "qa/tests/08_checkout_validation_test.md",
       "title": "Checkout form rejects invalid payment and missing required fields",
-      "features": ["checkout"],
+      "features": [
+        "checkout"
+      ],
       "priority": "P2",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:55.848615+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     },
     {
       "id": "REG-009",
       "file": "qa/tests/09_info_pages_test.md",
       "title": "Informational pages (About, Size Guide, Returns, Contact) render",
-      "features": ["info-pages", "navigation"],
+      "features": [
+        "info-pages",
+        "navigation"
+      ],
       "priority": "P3",
-      "tm_test_case_id": null
+      "tm_test_case_id": null,
+      "last_sync": {
+        "at": "2026-06-15T14:12:56.836934+00:00",
+        "status": "failed",
+        "share_url": ""
+      }
     }
   ]
 }
