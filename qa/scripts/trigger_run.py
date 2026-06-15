@@ -60,6 +60,22 @@ def resolve_tests(args, manifest) -> list[dict]:
     return tests
 
 
+def resolve_environment(client, tm: dict, spec: dict):
+    """Reuse a pinned id, then an existing environment matching the configured
+    name, else create one — so we don't pile up a new environment every run."""
+    if tm.get("environment_id"):
+        print(f"[trigger] using pinned environment_id={tm['environment_id']}")
+        return tm["environment_id"]
+    target = str(spec.get("name", "")).strip().lower()
+    for env in client.list_environments():
+        if str(env.get("name", "")).strip().lower() == target and env.get("environment_id"):
+            print(f"[trigger] reusing environment_id={env['environment_id']} ({spec.get('name')})")
+            return env["environment_id"]
+    env_id = client.create_environment(spec)
+    print(f"[trigger] created environment_id={env_id} ({spec.get('name')})")
+    return env_id
+
+
 def build_instances(tests: list[dict], environment_id) -> list[dict]:
     """One Test Run instance per test case, grouped under the environment."""
     instances = []
@@ -87,23 +103,18 @@ def main() -> None:
     test_case_ids = [t["tm_test_case_id"] for t in tests]
     print(f"[trigger] {args.mode} run with {len(tests)} test case(s)")
 
-    # 1a. Resolve the execution environment (browser/OS). Reuse a pinned id if
-    #     set, else create one from the config spec.
-    env_id = tm.get("environment_id")
-    if not env_id:
-        env_id = client.create_environment(ex["environment"])
-        print(f"[trigger] created environment_id={env_id}")
-    else:
-        print(f"[trigger] using pinned environment_id={env_id}")
+    # 1a. Resolve the execution environment (browser/OS): pinned → existing → create.
+    env_id = resolve_environment(client, tm, ex["environment"])
 
-    # 1b. Create (or duplicate) the Test Run with per-test instances.
+    # 1b. Create the Test Run (the create endpoint ignores inline instances).
     instances = build_instances(tests, env_id)
+    objective = f"Automated {args.mode} regression for {cfg['app']['name']}"
     try:
         run_id = client.create_test_run(
             title=title,
             project_id=tm["project_id"],
-            test_run_instances=instances,
-            objective=f"Automated {args.mode} regression for {cfg['app']['name']}",
+            test_run_instances=[],
+            objective=objective,
         )
     except Exception as exc:  # noqa: BLE001
         if tm.get("template_test_run_id"):
@@ -112,6 +123,11 @@ def main() -> None:
         else:
             sys.exit(f"ERROR: could not create Test Run: {exc}")
     print(f"[trigger] Test Run created: {run_id}")
+
+    # 1c. Attach the test case instances to the run (PUT update-by-id).
+    client.set_test_run_instances(run_id, project_id=tm["project_id"], title=title,
+                                  test_run_instances=instances, objective=objective)
+    print(f"[trigger] attached {len(instances)} instance(s) to run {run_id}")
 
     # 2. Trigger on HyperExecute
     payload = {
