@@ -26,6 +26,26 @@ sys.path.insert(0, str(Path(__file__).parent))
 from lt_client import load_config, load_manifest, save_manifest  # noqa: E402
 
 
+def meta_testcase_id(test_file: str) -> str:
+    """Read the TM test case id from kane-cli's local meta.json for this test.
+
+    output-<stem>/.internal/meta.json is the authoritative record of the test
+    case identity and is written on every run. The NDJSON stream only includes
+    commit.testcase_id on some runs (e.g. the first author / a failed run), and
+    omits it on a clean replay-pass (commit.committed:false), so meta.json is the
+    reliable source for filling the manifest.
+    """
+    name = Path(test_file).name
+    stem = name[: -len("_test.md")] if name.endswith("_test.md") else Path(test_file).stem
+    meta = Path(test_file).parent / f"output-{stem}" / ".internal" / "meta.json"
+    if not meta.exists():
+        return ""
+    try:
+        return str(json.loads(meta.read_text(encoding="utf-8")).get("testcase_id") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def run_test(file: str, base_url: str, timeout_s: int = 1800) -> dict:
     """Run one testmd file via kane-cli in agent mode; return parsed signals.
 
@@ -70,6 +90,10 @@ def run_test(file: str, base_url: str, timeout_s: int = 1800) -> dict:
         m = re.search(r"/test-cases?/([A-Za-z0-9_-]+)", signals["share_url"])
         if m:
             signals["test_case_id"] = m.group(1)
+    # Authoritative override: kane-cli's local meta.json always records the id.
+    meta_id = meta_testcase_id(file)
+    if meta_id:
+        signals["test_case_id"] = meta_id
     if proc.returncode != 0 or not signals["test_case_id"]:
         out_tail = "\n".join(proc.stdout.splitlines()[-8:])
         err_tail = "\n".join((proc.stderr or "").splitlines()[-15:])
