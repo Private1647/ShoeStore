@@ -33,10 +33,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 from lt_client import load_manifest, read_json, write_json  # noqa: E402
 
 
-def reauthor(test_file: str, base_url: str, author_mode: str, timeout_s: int = 1800) -> dict:
+def reauthor(test_file: str, base_url: str, timeout_s: int = 1800) -> dict:
+    # --author is a boolean flag (force a fresh test+testcase in TMS, replace
+    # local output). --headless is required so Chrome can launch on the runner.
     cmd = [
-        "kane-cli", "testmd", "run", test_file, "--agent",
-        "--author", author_mode,
+        "kane-cli", "testmd", "run", test_file, "--agent", "--headless",
+        "--author",
         "--variables", json.dumps({"BASE_URL": {"value": base_url}}),
     ]
     print(f"[heal] re-authoring: {test_file} against {base_url}", flush=True)
@@ -55,8 +57,10 @@ def reauthor(test_file: str, base_url: str, author_mode: str, timeout_s: int = 1
             except json.JSONDecodeError:
                 continue
     if proc.returncode != 0:
-        tail = "\n".join(proc.stdout.splitlines()[-12:])
-        print(f"[heal] still failing (exit {proc.returncode}):\n{tail}")
+        out_tail = "\n".join(proc.stdout.splitlines()[-8:])
+        err_tail = "\n".join((proc.stderr or "").splitlines()[-12:])
+        print(f"[heal] still failing (exit {proc.returncode}):\n"
+              f"--- stdout ---\n{out_tail}\n--- stderr ---\n{err_tail}")
     return {"exit_code": proc.returncode, "share_url": share_url}
 
 
@@ -64,8 +68,6 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", required=True,
                     help="URL the re-authoring run targets (PR: http://localhost:5000)")
-    ap.add_argument("--author-mode", default="force-author",
-                    choices=["force-author", "complete-reauthor"])
     ap.add_argument("--max-heals", type=int, default=5,
                     help="Cap re-authoring attempts per run (cost control)")
     args = ap.parse_args()
@@ -84,7 +86,7 @@ def main() -> None:
     healed, still_failing = [], []
     for bug in candidates[: args.max_heals]:
         test = by_reg[bug["reg_id"]]
-        outcome = reauthor(test["file"], args.base_url, args.author_mode)
+        outcome = reauthor(test["file"], args.base_url)
         entry = {
             "reg_id": bug["reg_id"],
             "title": test["title"],
@@ -104,7 +106,7 @@ def main() -> None:
     write_json("reports/heal.json", {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "base_url": args.base_url,
-        "author_mode": args.author_mode,
+        "author_mode": "force-author",
         "healed": healed,
         "still_failing": still_failing,
         "skipped_over_cap": skipped,

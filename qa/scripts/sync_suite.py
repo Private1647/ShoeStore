@@ -27,12 +27,17 @@ from lt_client import load_config, load_manifest, save_manifest  # noqa: E402
 
 
 def run_test(file: str, base_url: str, timeout_s: int = 1800) -> dict:
-    """Run one testmd file via kane-cli in agent mode; return parsed signals."""
+    """Run one testmd file via kane-cli in agent mode; return parsed signals.
+
+    --headless is REQUIRED: kane-cli drives a real Google Chrome via CDP, and a
+    CI runner has no display — without it Chrome cannot launch and kane-cli
+    exits 2 (setup error) before any NDJSON is emitted.
+    """
     cmd = [
-        "kane-cli", "testmd", "run", file, "--agent",
+        "kane-cli", "testmd", "run", file, "--agent", "--headless",
         "--variables", json.dumps({"BASE_URL": {"value": base_url}}),
     ]
-    print(f"[sync] $ {' '.join(cmd[:5])} ...", flush=True)
+    print(f"[sync] $ {' '.join(cmd[:6])} ...", flush=True)
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, check=False)
 
     signals = {"exit_code": proc.returncode, "share_url": "", "test_case_id": "",
@@ -45,20 +50,29 @@ def run_test(file: str, base_url: str, timeout_s: int = 1800) -> dict:
             evt = json.loads(line)
         except json.JSONDecodeError:
             continue
-        for key in ("share_url", "shareUrl"):
-            if evt.get(key):
-                signals["share_url"] = evt[key]
-        for key in ("test_case_id", "testCaseId", "tms_test_case_id", "tc_id"):
-            if evt.get(key):
-                signals["test_case_id"] = str(evt[key])
-    # Fallback: scrape a TC id out of the share URL if present
+        # share_url is a top-level field on the test_md_summary / test_md_done events
+        if evt.get("share_url") or evt.get("shareUrl"):
+            signals["share_url"] = evt.get("share_url") or evt.get("shareUrl")
+        # The Test Manager test case id lives at commit.testcase_id on test_md_summary
+        # (present even when the run failed — the test case is still created/uploaded).
+        commit = evt.get("commit") or {}
+        tc = (commit.get("testcase_id") or evt.get("testcase_id")
+              or evt.get("test_case_id") or evt.get("testCaseId"))
+        if tc:
+            signals["test_case_id"] = str(tc)
+        if evt.get("overall_status"):
+            signals["status"] = "passed" if evt["overall_status"] == "passed" else "failed"
+    # Fallback: scrape the TC id out of the share URL (…/test-cases/<id>/…)
     if signals["share_url"] and not signals["test_case_id"]:
-        m = re.search(r"(?:test-case|testcase|tc)[/=]([A-Za-z0-9-]+)", signals["share_url"])
+        m = re.search(r"/test-cases?/([A-Za-z0-9_-]+)", signals["share_url"])
         if m:
             signals["test_case_id"] = m.group(1)
-    if proc.returncode != 0:
-        tail = "\n".join(proc.stdout.splitlines()[-15:])
-        print(f"[sync] WARNING: {file} exited {proc.returncode}\n{tail}")
+    if proc.returncode != 0 or not signals["test_case_id"]:
+        out_tail = "\n".join(proc.stdout.splitlines()[-8:])
+        err_tail = "\n".join((proc.stderr or "").splitlines()[-15:])
+        print(f"[sync] WARNING: {file} exit={proc.returncode} "
+              f"tc_id={signals['test_case_id'] or '(none parsed)'}\n"
+              f"--- stdout tail ---\n{out_tail}\n--- stderr tail ---\n{err_tail}")
     return signals
 
 
