@@ -18,6 +18,7 @@ report.py); 1 only on infrastructure errors (could not create/trigger run).
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,20 +61,47 @@ def resolve_tests(args, manifest) -> list[dict]:
     return tests
 
 
+def _norm(s) -> str:
+    """Normalize a name for matching: lowercase, alphanumerics only (so an
+    em-dash vs hyphen vs spacing never causes a miss)."""
+    return re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+
+def _find_env_id(envs: list[dict], spec: dict):
+    target = _norm(spec.get("name"))
+    for env in envs:
+        if _norm(env.get("name")) == target and env.get("environment_id"):
+            return env["environment_id"]
+    return None
+
+
 def resolve_environment(client, tm: dict, spec: dict):
     """Reuse a pinned id, then an existing environment matching the configured
-    name, else create one — so we don't pile up a new environment every run."""
+    name, else create one — so we don't pile up a new environment every run.
+    Environment names are unique, so a create conflict means it already exists:
+    re-fetch and reuse it."""
     if tm.get("environment_id"):
         print(f"[trigger] using pinned environment_id={tm['environment_id']}")
         return tm["environment_id"]
-    target = str(spec.get("name", "")).strip().lower()
-    for env in client.list_environments():
-        if str(env.get("name", "")).strip().lower() == target and env.get("environment_id"):
-            print(f"[trigger] reusing environment_id={env['environment_id']} ({spec.get('name')})")
-            return env["environment_id"]
-    env_id = client.create_environment(spec)
-    print(f"[trigger] created environment_id={env_id} ({spec.get('name')})")
-    return env_id
+    envs = client.list_environments()
+    print(f"[trigger] fetched {len(envs)} existing environment(s)")
+    found = _find_env_id(envs, spec)
+    if found:
+        print(f"[trigger] reusing environment_id={found} ({spec.get('name')})")
+        return found
+    try:
+        env_id = client.create_environment(spec)
+        print(f"[trigger] created environment_id={env_id} ({spec.get('name')})")
+        return env_id
+    except Exception as exc:  # noqa: BLE001
+        if "already exists" not in str(exc).lower():
+            raise
+        found = _find_env_id(client.list_environments(), spec)
+        if not found:
+            raise RuntimeError(f"environment '{spec.get('name')}' exists but was not "
+                               f"found in the environments list: {exc}")
+        print(f"[trigger] reusing environment_id={found} (after create conflict)")
+        return found
 
 
 def build_instances(tests: list[dict], environment_id) -> list[dict]:
