@@ -42,6 +42,24 @@ execution:
   report_email_to: []          # up to 10 addresses
   poll_interval_seconds: 30
   poll_timeout_minutes: 45
+  # Browser/OS the Test Run executes on. The pipeline creates a Test Manager
+  # "environment" (configuration) from this and groups all test instances under
+  # it (POST /api/v1/environments). Pin test_manager.environment_id to an
+  # existing id to skip creation. Values must be valid LambdaTest capabilities.
+  environment:
+    name: "ShoeStore Web — Chrome"
+    platform: "desktop"
+    platform_type: "web"
+    os: "macOS Monterey"
+    os_name: "macOS"
+    os_id: "macOS"
+    os_version: "macOS Monterey"
+    browser: "Chrome"
+    browser_id: "Chrome"
+    browser_version: "149.0"
+    browser_version_id: "149.0"
+    resolution: "1600x1200"
+    resolution_id: "1600x1200"
 
 # ── Change-impact map ────────────────────────────────────────────────────────
 # Regex on changed file paths → product features. Tests in qa/manifest.json

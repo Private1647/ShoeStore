@@ -95,24 +95,50 @@ class LTClient:
             return {"_error": str(exc)}
 
     # ── Test Manager ─────────────────────────────────────────────────────────
-    def create_test_run(self, name: str, project_id: str, test_case_ids: list[str],
-                        assignee=None, environment_id=None) -> str:
+    def create_environment(self, spec: dict) -> int:
         """
-        Create a Test Run containing the given test case IDs.
-        API: POST {tm}/api/v1/test-run
-        NOTE: field names below follow the Test Manager API conventions; if your
-        org's tenant differs, fix here once (or set template_test_run_id in
-        qa/config.yml to use the duplicate-run fallback instead).
+        Create a Test Manager environment/configuration (the browser+OS the run
+        executes on) and return its id.  API: POST {tm}/api/v1/environments
+        Response: {"environment_id": [307041], ...} — an array; we take the first.
+        """
+        body = {"configurations": [{
+            "name": spec.get("name", "QA Web"),
+            "platform": spec.get("platform", "desktop"),
+            "environments": [{
+                "os": spec["os"], "os_name": spec["os_name"], "os_id": spec["os_id"],
+                "os_version": spec["os_version"],
+                "browser": spec["browser"], "browser_id": spec["browser_id"],
+                "browser_version": spec["browser_version"],
+                "browser_version_id": spec["browser_version_id"],
+                "resolution": spec["resolution"], "resolution_id": spec["resolution_id"],
+                "url": "", "platform_type": spec.get("platform_type", "web"),
+            }],
+        }]}
+        resp = self.post(f"{self.tm_base}/api/v1/environments", body)
+        ids = resp.get("environment_id") or resp.get("data", {}).get("environment_id")
+        if isinstance(ids, list):
+            ids = ids[0] if ids else None
+        if not ids:
+            raise RuntimeError(f"Create environment returned no id: {resp}")
+        return ids
+
+    def create_test_run(self, title: str, project_id: str,
+                        test_run_instances: list[dict], objective: str = "",
+                        tags: list | None = None, is_auteur_generated: bool = True) -> str:
+        """
+        Create a Test Run.  API: POST {tm}/api/v1/test-run
+        Body: title + objective + project_id + tags + is_auteur_generated +
+        test_run_instances[{test_case_id, environment_id, serial_no, priority,
+        name}].  Response: {"id": "<test_run_id>", "type": "Success", ...}.
         """
         body = {
-            "name": name,
+            "title": title,
+            "objective": objective or title,
             "project_id": project_id,
-            "test_case_ids": test_case_ids,
+            "tags": tags or [],
+            "is_auteur_generated": is_auteur_generated,
+            "test_run_instances": test_run_instances,
         }
-        if assignee:
-            body["assignee"] = assignee
-        if environment_id:
-            body["environment_id"] = environment_id
         resp = self.post(f"{self.tm_base}/api/v1/test-run", body)
         run_id = resp.get("id") or resp.get("data", {}).get("id")
         if not run_id:
