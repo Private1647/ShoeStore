@@ -1,0 +1,66 @@
+# Daily regression: full suite → Test Run → HyperExecute → evidence pack →
+# GitHub issues for every bug. Answers one question: are there bugs or not?
+name: QA · Daily Regression
+
+on:
+  schedule:
+    - cron: "30 3 * * *"   # 09:00 IST daily
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Custom run title"
+        required: false
+      dry_run:
+        description: "Observe only — write summary + artifact, do NOT open GitHub issues"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: qa-daily-regression
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      LT_USERNAME: ${{ secrets.LT_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+      TARGET_URL: ${{ vars.QA_TARGET_URL }}        # deployed environment
+      TM_PROJECT_ID: ${{ vars.TM_PROJECT_ID }}
+      TM_FOLDER_ID: ${{ vars.TM_FOLDER_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipeline dependencies
+        run: pip install -r qa/requirements.txt -q
+
+      - name: Trigger full regression on HyperExecute
+        run: |
+          python qa/scripts/trigger_run.py --mode full \
+            --title "${{ inputs.title || format('Daily regression · {0} · run {1}', github.event.repository.name, github.run_number) }}"
+
+      - name: Build evidence packs for failures
+        if: always()
+        run: python qa/scripts/evidence_pack.py
+
+      - name: Report — summary, bug issues, recovery sync
+        if: always()
+        run: python qa/scripts/report.py --mode daily ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Upload evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-evidence
+          path: reports/
+          retention-days: 30
