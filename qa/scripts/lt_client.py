@@ -95,6 +95,19 @@ class LTClient:
             return {"_error": str(exc)}
 
     # ── Test Manager ─────────────────────────────────────────────────────────
+    def list_environments(self) -> list[dict]:
+        """GET {tm}/api/v1/environments → existing environments.
+        Response: {"data": {"environments": [{environment_id, name, ...}, ...]}}."""
+        resp = self.try_get(f"{self.tm_base}/api/v1/environments")
+        if "_error" in resp:
+            return []
+        data = resp.get("data") if isinstance(resp, dict) else None
+        if isinstance(data, dict) and isinstance(data.get("environments"), list):
+            return data["environments"]
+        if isinstance(resp, dict) and isinstance(resp.get("environments"), list):
+            return resp["environments"]
+        return resp if isinstance(resp, list) else []
+
     def create_environment(self, spec: dict) -> int:
         """
         Create a Test Manager environment/configuration (the browser+OS the run
@@ -144,6 +157,29 @@ class LTClient:
         if not run_id:
             raise RuntimeError(f"Create Test Run returned no id: {resp}")
         return run_id
+
+    def set_test_run_instances(self, run_id: str, project_id: str, title: str,
+                               test_run_instances: list[dict], objective: str = "",
+                               tags: list | None = None,
+                               is_auteur_generated: bool = True,
+                               run_type: str = "Manual") -> dict:
+        """
+        Attach the test case instances to a freshly-created run.
+        The create endpoint ignores inline test_run_instances (its example shows
+        []), so instances are set via PUT {tm}/api/v1/test-run/{id}
+        (Update Test Run By ID) with the full run body.
+        """
+        body = {
+            "id": run_id,
+            "title": title,
+            "objective": objective or title,
+            "tags": tags or [],
+            "is_auteur_generated": is_auteur_generated,
+            "type": run_type,
+            "test_run_instances": test_run_instances,
+            "project_id": project_id,
+        }
+        return self.request("PUT", f"{self.tm_base}/api/v1/test-run/{run_id}", body=body)
 
     def duplicate_test_run(self, template_run_id: str, name: str) -> str:
         """Fallback: POST {tm}/api/v1/test-run/{id}/duplicate."""
