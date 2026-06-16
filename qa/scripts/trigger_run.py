@@ -21,6 +21,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -183,7 +184,23 @@ def main() -> None:
     if env_id:
         payload["environment_id"] = env_id
 
-    resp = client.trigger_hyperexecute(payload)
+    # The tunnel is registered just before this call; HyperExecute's backend
+    # tunnel-active check can briefly 500 ("Failed to check if tunnel is active")
+    # until it propagates. Retry on tunnel/5xx errors.
+    resp = None
+    for attempt in range(1, 7):
+        try:
+            resp = client.trigger_hyperexecute(payload)
+            break
+        except Exception as exc:  # noqa: BLE001
+            msg = str(exc)
+            transient = "tunnel" in msg.lower() or "HTTP 5" in msg
+            if transient and attempt < 6:
+                print(f"[trigger] hyperexecute not ready ({msg[:140]}); "
+                      f"retry {attempt}/6 in 15s", flush=True)
+                time.sleep(15)
+                continue
+            raise
     print(f"[trigger] hyperexecute response: {json.dumps(resp, default=str)[:600]}")
     rdata = resp.get("data") if isinstance(resp.get("data"), dict) else {}
     job_id = resp.get("job_id") or rdata.get("job_id")
