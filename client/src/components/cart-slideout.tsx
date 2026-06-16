@@ -128,7 +128,7 @@ export default function CartSlideout() {
                   navigate("/checkout");
                 }}
               >
-                Proceed to Checkout
+                Continue to Checkout
               </Button>
             </div>
           )}
