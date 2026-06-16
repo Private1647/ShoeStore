@@ -24,7 +24,10 @@ test_manager:
   base_url: "https://test-manager-api.lambdatest.com"
   project_id: "01KTY2234CH831DGA9SNK5BE3X"
   folder_id: "01KTY256PH5SVZK6J13C242HHD"
-  environment_id: null         # optional TM environment
+  environment_id: 307049       # pinned TM environment/configuration (deterministic;
+                               # avoids re-creating one each run). Created from
+                               # execution.environment below. Set null to auto
+                               # reuse-by-name / create.
   assignee: null               # optional TestMu user id for created runs
   # Fallback: an existing Test Run to duplicate if direct creation is not
   # available on your plan. Leave null to create runs via API directly.
