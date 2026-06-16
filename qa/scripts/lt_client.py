@@ -276,8 +276,27 @@ class LTClient:
         return resp.get("data", []) if "_error" not in resp else []
 
     # ── Insights AI RCA ──────────────────────────────────────────────────────
-    def get_ai_rca(self, session_id: str) -> dict:
-        return self.try_get(f"{RCA_API}?session_id={urllib.parse.quote(session_id)}", timeout=45)
+    def get_rca(self, test_ids: list[str]) -> dict:
+        """GET {RCA}?test_ids=<csv> → {test_id: rca_object} for any already-generated RCA."""
+        ids = [t for t in test_ids if t]
+        if not ids:
+            return {}
+        qs = urllib.parse.urlencode({"test_ids": ",".join(ids)})
+        resp = self.try_get(f"{RCA_API}?{qs}", timeout=45)
+        if "_error" in resp:
+            return {}
+        data = resp.get("data") or []
+        return {r.get("test_id"): r for r in data if isinstance(r, dict) and r.get("test_id")}
+
+    def generate_rca(self, job_ids: list[str], test_ids: list[str]) -> dict:
+        """POST {RCA}/generate to trigger RCA generation for tests that lack it."""
+        body = {"job_ids": [j for j in job_ids if j], "test_ids": [t for t in test_ids if t]}
+        if not body["test_ids"]:
+            return {}
+        try:
+            return self.post(f"{RCA_API}/generate", body)
+        except Exception as exc:  # noqa: BLE001
+            return {"_error": str(exc)}
 
     # ── Automation session evidence ──────────────────────────────────────────
     def get_session_network_log(self, session_id: str) -> dict:
