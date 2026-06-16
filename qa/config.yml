@@ -29,9 +29,10 @@ test_manager:
                                # execution.environment below. Set null to auto
                                # reuse-by-name / create.
   assignee: null               # optional TestMu user id for created runs
-  # Fallback: an existing Test Run to duplicate if direct creation is not
-  # available on your plan. Leave null to create runs via API directly.
-  template_test_run_id: null
+  # Reusable template Test Run. HyperExecute clones the run it executes, so we
+  # reuse this one (updating its instances per run) instead of creating a fresh
+  # orphan every time. Leave null to create one (its id is logged to pin here).
+  template_test_run_id: "01KV7NJH8ZEPKVDPTQ93DWDZTY"
 
 execution:
   concurrency: 4
