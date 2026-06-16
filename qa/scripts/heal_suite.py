@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -34,11 +35,16 @@ from lt_client import load_manifest, read_json, write_json  # noqa: E402
 
 
 def reauthor(test_file: str, base_url: str, timeout_s: int = 1800) -> dict:
-    # --author is a boolean flag (force a fresh test+testcase in TMS, replace
-    # local output). --headless is required so Chrome can launch on the runner.
-    # --url retargets the run at the PR's own code on localhost: it overrides the
-    # frontmatter url:/deployed URL (a --variables override cannot, since the file
-    # owns BASE_URL), so the heal re-authors against the changed code — not prod.
+    # Force a FRESH author against base_url (the PR's code on localhost). If a
+    # committed recording exists, kane-cli REPLAYS it — ignoring --url and using
+    # the recorded (deployed) URL — even with --author. Wipe output-<stem>/ first
+    # so there is nothing to replay; only then does it re-author against --url.
+    name = Path(test_file).name
+    stem = name[:-len("_test.md")] if name.endswith("_test.md") else Path(test_file).stem
+    out_dir = Path(test_file).parent / f"output-{stem}"
+    if out_dir.exists():
+        shutil.rmtree(out_dir, ignore_errors=True)
+        print(f"[heal] cleared recording {out_dir} to force a fresh author", flush=True)
     cmd = [
         "kane-cli", "testmd", "run", test_file, "--agent", "--headless",
         "--author", "--url", base_url,
