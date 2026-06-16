@@ -100,13 +100,17 @@ class LTClient:
         Response: {"data": {"environments": [{environment_id, name, ...}, ...]}}."""
         resp = self.try_get(f"{self.tm_base}/api/v1/environments")
         if "_error" in resp:
+            print(f"[lt] list_environments error: {str(resp['_error'])[:200]}")
             return []
         data = resp.get("data") if isinstance(resp, dict) else None
         if isinstance(data, dict) and isinstance(data.get("environments"), list):
             return data["environments"]
         if isinstance(resp, dict) and isinstance(resp.get("environments"), list):
             return resp["environments"]
-        return resp if isinstance(resp, list) else []
+        if isinstance(resp, list):
+            return resp
+        print(f"[lt] list_environments unexpected shape: {str(resp)[:300]}")
+        return []
 
     def create_environment(self, spec: dict) -> int:
         """
