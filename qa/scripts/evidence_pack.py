@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -78,24 +79,53 @@ def console_errors(console_log: dict) -> list[str]:
 
 
 def rca_summary(rca: dict) -> dict:
-    """Normalize the Insights RCA response into {category, root_cause, fix}."""
-    # RCA wiring is deferred (the tms-report/rca-category POST contract is TBD),
-    # so show a clean placeholder rather than a raw HTTP error.
+    """Normalize an Insights RCA object → {category, root_cause, fix}.
+
+    Shape (GET /insights/api/v3/public/rca?test_ids=…): each item has
+    rca_category + rca_detail{root_cause_category, parent_failure_category,
+    failure_summary, steps_to_fix:[{suggested_fix}], …}.
+    """
     if not rca or rca.get("_error"):
         return {"category": "", "root_cause": "RCA pending", "fix": ""}
-    data = rca.get("data", rca) if isinstance(rca, dict) else {}
-    def pick(d, *keys):
-        for k in keys:
-            v = d.get(k)
-            if isinstance(v, str) and v.strip():
-                return v.strip()
-        return ""
+    detail = rca.get("rca_detail") or {}
+    category = (rca.get("rca_category") or detail.get("root_cause_category")
+                or detail.get("parent_failure_category") or "")
+    root_cause = detail.get("failure_summary") or ""
+    fixes = [f.get("suggested_fix", "") for f in (detail.get("steps_to_fix") or [])
+             if isinstance(f, dict) and f.get("suggested_fix")]
     return {
-        "category": pick(data, "failure_category", "category", "root_cause_type", "errorType"),
-        "root_cause": pick(data, "root_cause", "rootCause", "rca", "summary", "description", "message")
-                      or json.dumps(data)[:400],
-        "fix": pick(data, "how_to_fix", "remediation", "suggested_fix", "recommendation"),
+        "category": category,
+        "root_cause": root_cause or "RCA pending",
+        "fix": "; ".join(fixes)[:300],
     }
+
+
+def fetch_rca(client: LTClient, failed: list[dict], run: dict,
+              attempts: int = 6, wait_s: int = 20) -> dict:
+    """Fetch RCA for the failed tests by test_id. If a test has none yet, trigger
+    generation (POST /rca/generate) and poll until it appears (or give up — the
+    next run's GET will pick it up). Returns {test_id: rca_object}."""
+    test_ids = [i.get("test_id") for i in failed if i.get("test_id")]
+    test_ids = [t for t in test_ids if t]
+    if not test_ids:
+        return {}
+    rca = client.get_rca(test_ids)
+    missing = [t for t in test_ids if t not in rca]
+    if not missing:
+        return rca
+    job_ids = [run.get("job_id")] + [str(i.get("raw", {}).get("job_id") or "") for i in failed]
+    print(f"[evidence] generating RCA for {len(missing)} test(s)", flush=True)
+    client.generate_rca(job_ids, missing)
+    for _ in range(attempts):
+        time.sleep(wait_s)
+        rca.update(client.get_rca(missing))
+        missing = [t for t in missing if t not in rca]
+        if not missing:
+            break
+    if missing:
+        print(f"[evidence] RCA still pending for {len(missing)} test(s) "
+              f"(will appear on a later run)", flush=True)
+    return rca
 
 
 def preview_link(project_id: str, test_run_id: str, inst: dict) -> str:
@@ -110,12 +140,12 @@ def preview_link(project_id: str, test_run_id: str, inst: dict) -> str:
 
 
 def build_evidence(client: LTClient, inst: dict, test_meta: dict, run: dict,
-                   out_dir: Path, project_id: str = "") -> dict:
+                   out_dir: Path, project_id: str = "", rca: dict | None = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     session_id = inst.get("session_id") or ""
     reg_id = test_meta.get("id", inst.get("test_case_id", "UNKNOWN"))
 
-    rca = client.get_ai_rca(session_id) if session_id else {}
+    rca = rca or {}
     network = client.get_session_network_log(session_id) if session_id else {}
     console = client.get_session_console_log(session_id) if session_id else {}
     video = client.get_session_video(session_id) if session_id else {}
@@ -208,13 +238,16 @@ def main() -> None:
               if str(i.get("status", "")).lower() in FAILED_STATES]
     print(f"[evidence] {len(failed)} failed instance(s) out of {len(run.get('instances', []))}")
 
+    rca_by_test = fetch_rca(client, failed, run)
+
     bugs = []
     for inst in failed:
         meta = by_tm_id.get(str(inst.get("test_case_id")), {})
         reg_id = meta.get("id", str(inst.get("test_case_id", "unknown")))
         out_dir = Path("reports/evidence") / reg_id
+        rca = rca_by_test.get(inst.get("test_id"), {})
         try:
-            bugs.append(build_evidence(client, inst, meta, run, out_dir, project_id))
+            bugs.append(build_evidence(client, inst, meta, run, out_dir, project_id, rca))
             print(f"[evidence] built pack for {reg_id}")
         except Exception as exc:  # noqa: BLE001
             print(f"[evidence] WARNING: pack for {reg_id} incomplete: {exc}")
