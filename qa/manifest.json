@@ -1,7 +1,7 @@
 {
   "suite": "shoestore-regression",
   "description": "Source of truth linking local kane-cli testmd files to Test Manager test cases. tm_test_case_id is filled by the qa-suite-sync workflow after authoring/upload.",
-  "updated_at": "2026-06-15T14:58:19.794380+00:00",
+  "updated_at": "2026-06-16T08:27:38.197687+00:00",
   "tests": [
     {
       "id": "REG-001",
@@ -14,8 +14,8 @@
       "priority": "P1",
       "tm_test_case_id": "01KV5VASRMDY32Z4W6V7MY6P2N",
       "last_sync": {
-        "at": "2026-06-15T14:58:19.794353+00:00",
-        "status": "passed",
+        "at": "2026-06-16T07:49:22.558312+00:00",
+        "status": "failed",
         "share_url": ""
       }
     },
@@ -27,11 +27,11 @@
         "search"
       ],
       "priority": "P1",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7PG3GD1XTMSJMD94PTJJ6J",
       "last_sync": {
-        "at": "2026-06-15T14:12:49.276734+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T07:52:34.146639+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7PG3GD1XTMSJMD94PTJJ6J/dashboard/share/US_2UB2CEBBZIUY4EFJ8YJJZYFTHM4C87D9PYWCTW3V5W72YU0MHZLVM4HBE0GPE9Z9?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -43,11 +43,11 @@
         "filters"
       ],
       "priority": "P2",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7PNYPKW70B5SH0CB3GEMAW",
       "last_sync": {
-        "at": "2026-06-15T14:12:50.436951+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T07:57:29.622217+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7PNYPKW70B5SH0CB3GEMAW/dashboard/share/US_CZ0AN6KGMEOYD606HU8B9HS5DW5CR98B25LM38E27TOJ1ON8UTU1OE5JHZPXNCK0?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -59,11 +59,11 @@
         "catalog"
       ],
       "priority": "P1",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7PYZ7740BZ3Q25DAZ4W331",
       "last_sync": {
-        "at": "2026-06-15T14:12:51.652729+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T08:01:02.537275+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7PYZ7740BZ3Q25DAZ4W331/dashboard/share/US_M3FDZUT7M76F6KI0LXC9Q70IL01O7SK6UMKZ0JVBPL5V3OKHPBK77KQYX0FTNAWE?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -74,11 +74,11 @@
         "cart"
       ],
       "priority": "P0",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7Q5F81P27GTD86AEAQ5BCX",
       "last_sync": {
-        "at": "2026-06-15T14:12:52.658224+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T08:05:03.013515+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7Q5F81P27GTD86AEAQ5BCX/dashboard/share/US_WV21G9XNOCO4RYP7TGMT56D36LK8O7JL6SNCQX7CCG4OKXMW0N98SU22LMQSJEJH?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -89,11 +89,11 @@
         "cart"
       ],
       "priority": "P1",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7QCT53P43VXNYGC1HN871F",
       "last_sync": {
-        "at": "2026-06-15T14:12:53.819266+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T08:11:05.216785+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7QCT53P43VXNYGC1HN871F/dashboard/share/US_UIT3DV4MQQ90YCFD12EKZZUUQI4BJ2L1SA2ZZNBLVLF04A0VWQ00XSG38O25IB2N?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -105,11 +105,11 @@
         "cart"
       ],
       "priority": "P0",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7QQVX9SDPCYSDK59RXK0JM",
       "last_sync": {
-        "at": "2026-06-15T14:12:54.902634+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T08:17:08.353318+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7QQVX9SDPCYSDK59RXK0JM/dashboard/share/US_UO40HCZ8M3H16HCSB3PJQKMULNTFMJP6Y2Z9KFNRM9LXG8G6MRNV1TKMR4AQAEJ0?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -120,11 +120,11 @@
         "checkout"
       ],
       "priority": "P2",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7R2YAHX9H8WE3PC96VCNZZ",
       "last_sync": {
-        "at": "2026-06-15T14:12:55.848615+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T08:22:52.338169+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7R2YAHX9H8WE3PC96VCNZZ/dashboard/share/US_UNXSI6TRP16RNPZY4ID39EUR5II5VW7UZRMXPWIZUCBJS001FZ4OM5HAV63IPA2C?type=summary&agentView=true&fqdn=summary-page"
       }
     },
     {
@@ -136,11 +136,11 @@
         "navigation"
       ],
       "priority": "P3",
-      "tm_test_case_id": null,
+      "tm_test_case_id": "01KV7RDE268NRV3ZNADCBTTVAE",
       "last_sync": {
-        "at": "2026-06-15T14:12:56.836934+00:00",
-        "status": "failed",
-        "share_url": ""
+        "at": "2026-06-16T08:27:38.197672+00:00",
+        "status": "passed",
+        "share_url": "https://test-manager.lambdatest.com/projects/01KTY2234CH831DGA9SNK5BE3X/test-cases/01KV7RDE268NRV3ZNADCBTTVAE/dashboard/share/US_NIV9QRUG3FT1BP25UDIQ4VXV7DE61T99LI6AKJ95576DLC0S2PIBD2FS5L5G7HP5?type=summary&agentView=true&fqdn=summary-page"
       }
     }
   ]
