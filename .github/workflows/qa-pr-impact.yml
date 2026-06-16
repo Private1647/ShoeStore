@@ -77,7 +77,11 @@ jobs:
         run: |
           curl -fsSL -o LT_Linux.zip https://downloads.lambdatest.com/tunnel/v3/linux/64bit/LT_Linux.zip
           unzip -o -q LT_Linux.zip
+          # --env ht-prod is REQUIRED for the tunnel to be visible to HyperExecute;
+          # without it HyperExecute's tunnel-active check fails (HTTP 500
+          # "Failed to check if tunnel is active").
           ./LT --user "$LT_USERNAME" --key "$LT_ACCESS_KEY" \
+               --env ht-prod \
                --tunnelName "qa-pr-${PR_NUMBER}" &> tunnel.log &
           # Tunnel v3.x prints "You can start testing now"; older builds printed
           # "Secure connection established". Accept either as the ready signal.
