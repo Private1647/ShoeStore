@@ -79,11 +79,14 @@ jobs:
           unzip -o -q LT_Linux.zip
           ./LT --user "$LT_USERNAME" --key "$LT_ACCESS_KEY" \
                --tunnelName "qa-pr-${PR_NUMBER}" &> tunnel.log &
+          # Tunnel v3.x prints "You can start testing now"; older builds printed
+          # "Secure connection established". Accept either as the ready signal.
+          READY='Secure connection established|You can start testing now'
           for i in $(seq 1 30); do
-            grep -q "Secure connection established" tunnel.log && break
+            grep -qE "$READY" tunnel.log && break
             sleep 2
           done
-          grep -q "Secure connection established" tunnel.log \
+          grep -qE "$READY" tunnel.log \
             || { echo "Tunnel failed to start"; tail -50 tunnel.log; exit 1; }
           echo "Tunnel qa-pr-${PR_NUMBER} is up."
 
