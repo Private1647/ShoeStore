@@ -187,42 +187,52 @@ def main() -> None:
         sys.exit(f"ERROR: hyperexecute trigger returned no job_id: {resp}")
     print(f"[trigger] HyperExecute job: {job_id}\n[trigger] {job_link}")
 
-    # 3. Poll to terminal state
+    # 3. Poll the TEST RUN to terminal state (Test Manager is the source of
+    #    truth; the HyperExecute job-status API returns 'unknown').
     started = datetime.now(timezone.utc).isoformat()
-    job = client.poll_job(job_id,
-                          interval_s=ex.get("poll_interval_seconds", 30),
-                          timeout_min=ex.get("poll_timeout_minutes", 45))
+    final = client.poll_test_run(run_id,
+                                 interval_s=ex.get("poll_interval_seconds", 20),
+                                 timeout_min=ex.get("poll_timeout_minutes", 45))
+    details = final.get("test_run_details") or {}
+    inst_data = (final.get("test_run_instances") or {}).get("data") or []
 
-    # 4. Collect per-test-case results from Test Manager
-    instances_raw = client.get_test_run_instances(run_id, tm["project_id"])
-    instances = []
-    for inst in instances_raw:
-        instances.append({
-            "test_case_id": inst.get("test_case_id") or inst.get("test_id"),
+    # 4. Map per-test-case results from the test run.
+    result_instances = []
+    for inst in inst_data:
+        env = inst.get("environment") or {}
+        result_instances.append({
+            "test_case_id": inst.get("test_case_id"),
             "instance_id": inst.get("id"),
-            "name": inst.get("name") or inst.get("title", ""),
+            "name": inst.get("title") or inst.get("name", ""),
             "status": str(inst.get("status", "unknown")).lower(),
-            "session_id": inst.get("session_id") or inst.get("test_session_id"),
-            "duration": inst.get("duration"),
+            "session_id": inst.get("session_id") or inst.get("internal_id") or "",
+            "linked_test_url": inst.get("linked_test_url", ""),
+            "auteur_test_id": inst.get("auteur_test_id", ""),
+            "environment": env.get("name", ""),
+            "browser": env.get("browser", ""),
+            "os": env.get("os_name") or env.get("os", ""),
             "raw": inst,
         })
 
+    run_result = details.get("run_result") or {}
     result = {
         "mode": args.mode,
         "title": title,
         "test_run_id": run_id,
         "test_case_ids": test_case_ids,
+        "environment_id": env_id,
         "job_id": job_id,
         "job_link": job_link,
-        "job_status": str(job.get("status", "unknown")).lower(),
-        "job_summary": job.get("summary", {}),
+        "job_status": str(details.get("status", "unknown")).lower(),
+        "run_result": run_result,
+        "complete_percent": details.get("complete_percent"),
         "started_at": started,
         "finished_at": datetime.now(timezone.utc).isoformat(),
-        "instances": instances,
+        "instances": result_instances,
     }
     write_json(args.out, result)
-    print(f"[trigger] wrote {args.out} — job_status={result['job_status']}, "
-          f"instances={len(instances)}")
+    print(f"[trigger] wrote {args.out} — status={result['job_status']}, "
+          f"instances={len(result_instances)}, run_result={run_result}")
 
 
 if __name__ == "__main__":

@@ -194,15 +194,55 @@ class LTClient:
             raise RuntimeError(f"Duplicate Test Run returned no id: {resp}")
         return run_id
 
-    def get_test_run_instances(self, test_run_id: str, project_id: str) -> list[dict]:
-        """GET test run instances → per-test-case execution results + session ids."""
-        url = (f"{self.tm_base}/api/v1/test-run/{test_run_id}/instances"
-               f"?project_id={urllib.parse.quote(project_id)}")
-        resp = self.try_get(url)
-        if "_error" in resp:
-            return []
-        data = resp.get("data") or resp.get("instances") or resp
-        return data if isinstance(data, list) else data.get("instances", [])
+    def get_test_run(self, test_run_id: str) -> dict:
+        """
+        GET {tm}/api/v1/test-run/instances/{id} → the run's status + instances.
+        Response: {"test_run_details": {status, run_result:{total_test, passed,
+        failed, skipped, not_started}, complete_percent, ...},
+                   "test_run_instances": {"data": [{test_case_id, title, status,
+                   environment:{...}, linked_test_url, ...}], "pagination": {...}}}.
+        """
+        return self.try_get(
+            f"{self.tm_base}/api/v1/test-run/instances/{urllib.parse.quote(str(test_run_id))}")
+
+    def poll_test_run(self, test_run_id: str, interval_s: int = 20,
+                      timeout_min: int = 45) -> dict:
+        """
+        Poll the TEST RUN to completion (the HyperExecute job-status API returns
+        'unknown'; the Test Manager test-run status is the source of truth).
+        Terminal when the run status is terminal, or run_result shows every test
+        accounted for (not_started == 0), or complete_percent >= 100.
+        """
+        terminal = {"passed", "failed", "completed", "done", "skipped", "blocked",
+                    "aborted", "cancelled", "error", "partially passed", "partial"}
+        deadline = time.time() + timeout_min * 60
+        last: dict = {}
+        while time.time() < deadline:
+            resp = self.get_test_run(test_run_id)
+            if "_error" in resp:
+                print(f"[poll] test-run {test_run_id} fetch error: "
+                      f"{str(resp['_error'])[:150]}", flush=True)
+                time.sleep(interval_s)
+                continue
+            last = resp
+            details = resp.get("test_run_details") or {}
+            status = str(details.get("status", "")).lower()
+            rr = details.get("run_result") or {}
+            total = int(rr.get("total_test", 0) or 0)
+            not_started = int(rr.get("not_started", 0) or 0)
+            done = (int(rr.get("passed", 0) or 0) + int(rr.get("failed", 0) or 0)
+                    + int(rr.get("skipped", 0) or 0))
+            pct = details.get("complete_percent", 0)
+            print(f"[poll] test-run {test_run_id} status={status or 'unknown'} "
+                  f"pct={pct} done={done}/{total}", flush=True)
+            if (status in terminal
+                    or (total > 0 and not_started == 0 and done >= total)
+                    or (isinstance(pct, (int, float)) and pct >= 100)):
+                return resp
+            time.sleep(interval_s)
+        print(f"[poll] WARNING: test-run {test_run_id} timed out after {timeout_min} min",
+              flush=True)
+        return last
 
     # ── Test Run → HyperExecute trigger ─────────────────────────────────────
     def trigger_hyperexecute(self, payload: dict) -> dict:
