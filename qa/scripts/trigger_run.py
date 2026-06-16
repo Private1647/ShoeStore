@@ -231,9 +231,13 @@ def main() -> None:
         result_instances.append({
             "test_case_id": inst.get("test_case_id"),
             "instance_id": inst.get("id"),
+            "internal_id": inst.get("internal_id", ""),
             "name": inst.get("title") or inst.get("name", ""),
             "status": str(inst.get("status", "unknown")).lower(),
-            "session_id": inst.get("session_id") or inst.get("internal_id") or "",
+            # test_id is the automation session id (e.g. TV4TO-...), used for RCA
+            # and session logs; session_id keeps the old key as an alias.
+            "test_id": inst.get("test_id", ""),
+            "session_id": inst.get("test_id", ""),
             "linked_test_url": inst.get("linked_test_url", ""),
             "auteur_test_id": inst.get("auteur_test_id", ""),
             "environment": env.get("name", ""),

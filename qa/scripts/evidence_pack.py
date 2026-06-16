@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from lt_client import LTClient, load_manifest, read_json, write_json  # noqa: E402
+from lt_client import LTClient, load_config, load_manifest, read_json, write_json  # noqa: E402
 
 FAILED_STATES = {"failed", "error", "lambda error", "timeout"}
 
@@ -79,8 +79,10 @@ def console_errors(console_log: dict) -> list[str]:
 
 def rca_summary(rca: dict) -> dict:
     """Normalize the Insights RCA response into {category, root_cause, fix}."""
+    # RCA wiring is deferred (the tms-report/rca-category POST contract is TBD),
+    # so show a clean placeholder rather than a raw HTTP error.
     if not rca or rca.get("_error"):
-        return {"category": "", "root_cause": rca.get("_error", "RCA unavailable"), "fix": ""}
+        return {"category": "", "root_cause": "RCA pending", "fix": ""}
     data = rca.get("data", rca) if isinstance(rca, dict) else {}
     def pick(d, *keys):
         for k in keys:
@@ -96,8 +98,19 @@ def rca_summary(rca: dict) -> dict:
     }
 
 
+def preview_link(project_id: str, test_run_id: str, inst: dict) -> str:
+    """Test Manager test-instance URL (the 'Preview' link in the report)."""
+    instance_id = inst.get("instance_id")
+    if not (project_id and test_run_id and instance_id):
+        return ""
+    url = (f"https://test-manager.lambdatest.com/projects/{project_id}"
+           f"/test-run/{test_run_id}/test-instance/{instance_id}")
+    test_id = inst.get("test_id") or inst.get("session_id")
+    return f"{url}?testID={test_id}" if test_id else url
+
+
 def build_evidence(client: LTClient, inst: dict, test_meta: dict, run: dict,
-                   out_dir: Path) -> dict:
+                   out_dir: Path, project_id: str = "") -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     session_id = inst.get("session_id") or ""
     reg_id = test_meta.get("id", inst.get("test_case_id", "UNKNOWN"))
@@ -123,6 +136,8 @@ def build_evidence(client: LTClient, inst: dict, test_meta: dict, run: dict,
         video_url = video.get("url") or video.get("data", {}).get("video_url", "") \
             if isinstance(video.get("data", {}), dict) else ""
     replay_link = f"https://automation.lambdatest.com/test?testID={session_id}" if session_id else ""
+    tm_test_run_id = run.get("executed_test_run_id") or run.get("test_run_id") or ""
+    tm_preview_link = preview_link(project_id, tm_test_run_id, inst)
 
     bug = {
         "reg_id": reg_id,
@@ -132,6 +147,7 @@ def build_evidence(client: LTClient, inst: dict, test_meta: dict, run: dict,
         "status": inst.get("status"),
         "test_case_id": inst.get("test_case_id"),
         "session_id": session_id,
+        "preview_link": tm_preview_link,
         "replay_link": replay_link,
         "video_url": video_url,
         "job_link": run.get("job_link", ""),
@@ -161,6 +177,7 @@ def build_evidence(client: LTClient, inst: dict, test_meta: dict, run: dict,
     md += [
         "",
         "## Evidence",
+        f"- 🔍 Preview (Test Manager): {tm_preview_link or 'n/a'}",
         f"- ▶️ Session replay: {replay_link or 'n/a'}",
         f"- 🎬 Video: {video_url or 'see session replay'}",
         f"- 🧪 Environment: {bug['browser']} on {bug['os'] or 'n/a'}",
@@ -184,6 +201,7 @@ def main() -> None:
         sys.exit("ERROR: reports/run_result.json not found — run trigger_run.py first")
     manifest = load_manifest()
     by_tm_id = {str(t.get("tm_test_case_id")): t for t in manifest["tests"]}
+    project_id = load_config()["test_manager"]["project_id"]
     client = LTClient()
 
     failed = [i for i in run.get("instances", [])
@@ -196,7 +214,7 @@ def main() -> None:
         reg_id = meta.get("id", str(inst.get("test_case_id", "unknown")))
         out_dir = Path("reports/evidence") / reg_id
         try:
-            bugs.append(build_evidence(client, inst, meta, run, out_dir))
+            bugs.append(build_evidence(client, inst, meta, run, out_dir, project_id))
             print(f"[evidence] built pack for {reg_id}")
         except Exception as exc:  # noqa: BLE001
             print(f"[evidence] WARNING: pack for {reg_id} incomplete: {exc}")
