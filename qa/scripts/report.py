@@ -117,14 +117,14 @@ def build_summary(run: dict, bugs_doc: dict, cfg: dict, impact: dict | None,
 
     if failed_bugs:
         lines += ["### 🐞 Bugs (with evidence packs)", "",
-                  "| Test | Priority | Root cause (AI RCA) | Evidence |",
+                  "| Test | Priority | Root cause (AI RCA) | Preview |",
                   "|---|---|---|---|"]
         for b in failed_bugs:
             rca = (b.get("rca") or {}).get("root_cause", "")[:140].replace("|", "/")
-            replay = b.get("replay_link", "")
-            evidence = f"[replay]({replay})" if replay else "see artifacts"
+            preview = b.get("preview_link") or b.get("replay_link", "")
+            preview_cell = f"[Preview]({preview})" if preview else "see artifacts"
             lines.append(f"| **{b['reg_id']}** {b['title'][:60]} | {b.get('priority', '')} "
-                         f"| {rca or 'n/a'} | {evidence} |")
+                         f"| {rca or 'n/a'} | {preview_cell} |")
         lines += ["", "_Full evidence packs (video, console, network, RCA, repro steps) are "
                       "attached as the `qa-evidence` workflow artifact._", ""]
     return "\n".join(lines)
