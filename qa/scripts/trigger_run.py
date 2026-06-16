@@ -18,6 +18,7 @@ report.py); 1 only on infrastructure errors (could not create/trigger run).
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -134,28 +135,30 @@ def main() -> None:
     # 1a. Resolve the execution environment (browser/OS): pinned → existing → create.
     env_id = resolve_environment(client, tm, ex["environment"])
 
-    # 1b. Create the Test Run (the create endpoint ignores inline instances).
     instances = build_instances(tests, env_id)
     objective = f"Automated {args.mode} regression for {cfg['app']['name']}"
-    try:
-        run_id = client.create_test_run(
-            title=title,
-            project_id=tm["project_id"],
-            test_run_instances=[],
-            objective=objective,
-        )
-    except Exception as exc:  # noqa: BLE001
-        if tm.get("template_test_run_id"):
-            print(f"[trigger] create_test_run failed ({exc}); duplicating template run")
-            run_id = client.duplicate_test_run(tm["template_test_run_id"], title)
-        else:
-            sys.exit(f"ERROR: could not create Test Run: {exc}")
-    print(f"[trigger] Test Run created: {run_id}")
 
-    # 1c. Attach the test case instances to the run (PUT update-by-id).
+    # 1b. Resolve the test run to execute. HyperExecute CLONES the run it is given
+    #     and executes the clone, so creating a fresh run every time leaves an
+    #     orphan. Reuse a pinned template run instead; create one only if none is
+    #     pinned (and tell the operator to pin it).
+    template_id = tm.get("template_test_run_id")
+    if template_id:
+        run_id = template_id
+        print(f"[trigger] reusing template test run {run_id}")
+    else:
+        run_id = client.create_test_run(
+            title=title, project_id=tm["project_id"],
+            test_run_instances=[], objective=objective,
+        )
+        print(f"[trigger] created test run {run_id} — pin this as "
+              f"test_manager.template_test_run_id to stop creating orphan runs")
+
+    # 1c. Set this run's instances (overwrites the template's instances for this
+    #     run, e.g. full suite for daily vs. the impacted subset for a PR).
     client.set_test_run_instances(run_id, project_id=tm["project_id"], title=title,
                                   test_run_instances=instances, objective=objective)
-    print(f"[trigger] attached {len(instances)} instance(s) to run {run_id}")
+    print(f"[trigger] set {len(instances)} instance(s) on run {run_id}")
 
     # 2. Trigger on HyperExecute
     payload = {
@@ -181,16 +184,24 @@ def main() -> None:
         payload["environment_id"] = env_id
 
     resp = client.trigger_hyperexecute(payload)
-    job_id = resp.get("job_id")
-    job_link = resp.get("job_link", "")
+    print(f"[trigger] hyperexecute response: {json.dumps(resp, default=str)[:600]}")
+    rdata = resp.get("data") if isinstance(resp.get("data"), dict) else {}
+    job_id = resp.get("job_id") or rdata.get("job_id")
+    job_link = resp.get("job_link") or rdata.get("job_link", "")
     if not job_id:
         sys.exit(f"ERROR: hyperexecute trigger returned no job_id: {resp}")
-    print(f"[trigger] HyperExecute job: {job_id}\n[trigger] {job_link}")
+    # HyperExecute clones the test run we pass and EXECUTES the clone, leaving the
+    # one we created orphaned at 'not started'. Poll the clone's id when the
+    # response provides it; otherwise fall back to the run we created.
+    executed_run_id = (resp.get("test_run_id") or rdata.get("test_run_id")
+                       or resp.get("run_id") or rdata.get("run_id") or run_id)
+    print(f"[trigger] HyperExecute job: {job_id} | executed test_run_id="
+          f"{executed_run_id} (created={run_id})\n[trigger] {job_link}")
 
     # 3. Poll the TEST RUN to terminal state (Test Manager is the source of
     #    truth; the HyperExecute job-status API returns 'unknown').
     started = datetime.now(timezone.utc).isoformat()
-    final = client.poll_test_run(run_id,
+    final = client.poll_test_run(executed_run_id,
                                  interval_s=ex.get("poll_interval_seconds", 20),
                                  timeout_min=ex.get("poll_timeout_minutes", 45))
     details = final.get("test_run_details") or {}
@@ -219,6 +230,7 @@ def main() -> None:
         "mode": args.mode,
         "title": title,
         "test_run_id": run_id,
+        "executed_test_run_id": executed_run_id,
         "test_case_ids": test_case_ids,
         "environment_id": env_id,
         "job_id": job_id,
