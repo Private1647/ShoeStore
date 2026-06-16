@@ -77,18 +77,26 @@ def build_summary(run: dict, bugs_doc: dict, cfg: dict, impact: dict | None,
     else:
         verdict = "⚠️ No test results returned — check the HyperExecute job."
 
+    project_id = cfg.get("test_manager", {}).get("project_id", "")
+    run_tc_id = run.get("executed_test_run_id") or run.get("test_run_id") or ""
+    test_run_url = (f"https://test-manager.lambdatest.com/projects/{project_id}"
+                    f"/test-run/{run_tc_id}") if project_id and run_tc_id else ""
+    job_link = run.get("job_link", "")
+    test_run_cell = f"[View in Test Manager]({test_run_url})" if test_run_url else "—"
+
     lines = [
         MARKER,
         f"## 🧪 Agentic QA — {run.get('title', 'regression run')}",
         "",
         verdict,
         "",
-        f"| Total | Passed | Failed | Pass rate | Job |",
+        f"| Total | Passed | Failed | Pass rate | Test Run |",
         f"|---|---|---|---|---|",
-        f"| {total} | {passed} | {failed} | {pass_rate}% | "
-        f"[HyperExecute]({run.get('job_link', '')}) |",
+        f"| {total} | {passed} | {failed} | {pass_rate}% | {test_run_cell} |",
         "",
     ]
+    if job_link:
+        lines += [f"🔗 [HyperExecute job]({job_link})", ""]
 
     if impact:
         feats = ", ".join(impact.get("impacted_features", [])) or "—"
