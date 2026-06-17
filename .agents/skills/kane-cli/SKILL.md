@@ -806,3 +806,58 @@ kane-cli auto-launches Chrome with CDP (DevTools Protocol) on ports 9222–9230.
 - `--ws-endpoint <url>` — connect to a remote browser (LambdaTest grid)
 
 If Chrome fails to launch, ensure Google Chrome is installed and no other process is using CDP ports 9222–9230.
+
+---
+
+## 11. Test Suite Organization
+
+When creating multiple test cases, structure the output as a clean, deduplicated test suite — not the raw output directories that kane-cli generates.
+
+### Problem with raw kane-cli output
+
+`kane-cli run --name` and `testmd run` produce per-test output directories (e.g., `output-<stem>/`) that each contain their own copy of shared files like `.env.example`, `requirements.txt`, and `test.py`. This creates redundancy and makes the suite hard to navigate.
+
+### Recommended structure
+
+```
+tests/
+├── README.md                    # Documents the suite, test matrix, and how to run
+├── .env.example                 # Shared env config (single copy)
+├── requirements.txt             # Shared Python dependencies (single copy)
+├── test-cases/                  # Kane-cli testmd source files
+│   ├── 01_feature_a_test.md
+│   ├── 02_feature_b_test.md
+│   └── ...
+├── generated-scripts/           # Playwright scripts (descriptively named)
+│   ├── test_tc01_feature_a.py
+│   ├── test_tc02_feature_b.py
+│   └── ...
+└── results/                     # Test run results
+    ├── tc01_feature_a_result.md
+    ├── tc02_feature_b_result.md
+    └── ...
+```
+
+### Key principles
+
+1. **Deduplicate shared files.** `.env.example` and `requirements.txt` are identical across all generated scripts — place one copy at the suite root.
+2. **Name files descriptively.** Rename `test.py` → `test_tc01_homepage.py` and `Result.md` → `tc01_homepage_result.md` so each file is self-identifying.
+3. **Separate concerns.** Test definitions (`test-cases/`), generated automation code (`generated-scripts/`), and results (`results/`) go in separate directories.
+4. **Include a README.** Document the test matrix (test name, status, description), prerequisites, and run instructions.
+5. **Don't commit kane-cli internal dirs.** The `.internal/` directories inside `output-<stem>/` contain session cache — exclude them from git.
+
+### Post-run restructuring workflow
+
+After running tests with `kane-cli run --name` or `testmd run`:
+
+1. Copy `_test.md` files to `tests/test-cases/`
+2. Copy and rename each `output-<stem>/playwright-python-code/test.py` to `tests/generated-scripts/test_<name>.py`
+3. Copy and rename each `output-<stem>/Result.md` to `tests/results/<name>_result.md`
+4. Place one copy of `.env.example` and `requirements.txt` at `tests/`
+5. Remove the raw `output-<stem>/` and `.testmuai/tests/` directories from git
+
+### Version compatibility
+
+> **Known issue (as of May 2026):** kane-cli v0.3.1–v0.3.3 have a protobuf version mismatch bug in the bundled `v16-runner` binary (gencode 6.31.1 vs runtime 5.27.2). Use **v0.3.0** until the fix is released. See [LambdaTest/kane-cli#44](https://github.com/LambdaTest/kane-cli/issues/44).
+>
+> Additionally, v0.3.1+ requires GLIBC 2.38, which is unavailable on Ubuntu 22.04 LTS (GLIBC 2.35).
