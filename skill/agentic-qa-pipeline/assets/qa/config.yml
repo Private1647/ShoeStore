@@ -1,0 +1,104 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Agentic QA Pipeline — single source of configuration.
+#
+# PORTABILITY: to adopt this pipeline in ANY app repo, copy qa/ and
+# .github/workflows/qa-*.yml, then edit ONLY this file and
+# .lambdatest/config.yaml. No script changes required.
+# ═══════════════════════════════════════════════════════════════════════════
+
+app:
+  name: ShoeStore
+  # Base URL used by the DAILY regression run (stable deployed environment).
+  # Override per-run with the TARGET_URL env var / repo variable.
+  target_url: "https://REPLACE-ME.example.com"
+  # How the PR workflow boots this app on the runner (exposed via LT Tunnel,
+  # so PR runs test the actual changed code, not the deployed environment).
+  local:
+    install_command: "npm ci"
+    start_command: "npm run dev"
+    port: 5000
+    ready_path: "/"
+    ready_timeout_seconds: 120
+
+test_manager:
+  base_url: "https://test-manager-api.lambdatest.com"
+  project_id: "REPLACE_ME"   # Test Manager project id
+  folder_id: "REPLACE_ME"    # Test Manager folder id
+  environment_id: null       # pinned TM environment/configuration (deterministic;
+                               # avoids re-creating one each run). Created from
+                               # execution.environment below. Set null to auto
+                               # reuse-by-name / create.
+  assignee: null               # optional TestMu user id for created runs
+  # Reusable template Test Run. HyperExecute clones the run it executes, so we
+  # reuse this one (updating its instances per run) instead of creating a fresh
+  # orphan every time. Leave null to create one (its id is logged to pin here).
+  template_test_run_id: null
+
+execution:
+  concurrency: 4
+  region: "eastus"             # eastus | centralindia
+  retry_on_failure: true
+  max_retries: 1
+  console_log: "error"         # false | error | warn | info | true
+  network_logs: true
+  network_full_har: true       # full request/response capture → evidence pack
+  report_enabled: true         # HTML report on the HyperExecute job page
+  report_email_to: []          # up to 10 addresses
+  poll_interval_seconds: 30
+  poll_timeout_minutes: 45
+  # Browser/OS the Test Run executes on. The pipeline creates a Test Manager
+  # "environment" (configuration) from this and groups all test instances under
+  # it (POST /api/v1/environments). Pin test_manager.environment_id to an
+  # existing id to skip creation. Values must be valid LambdaTest capabilities.
+  environment:
+    name: "ShoeStore Web — Chrome"
+    platform: "desktop"
+    platform_type: "web"
+    os: "macOS Monterey"
+    os_name: "macOS"
+    os_id: "macOS"
+    os_version: "macOS Monterey"
+    browser: "Chrome"
+    browser_id: "Chrome"
+    browser_version: "149.0"
+    browser_version_id: "149.0"
+    resolution: "1600x1200"
+    resolution_id: "1600x1200"
+
+# ── Change-impact map ────────────────────────────────────────────────────────
+# Regex on changed file paths → product features. Tests in qa/manifest.json
+# declare which features they cover; the intersection selects the PR suite.
+# "ALL" forces full regression.
+impact_map:
+  - pattern: 'client/src/components/header\.tsx|client/src/.*search.*'
+    features: [search, navigation]
+  - pattern: 'client/src/components/(product-card|product-grid|product-modal|product-filters).*'
+    features: [catalog, product-detail, filters]
+  - pattern: 'client/src/components/cart-slideout.*'
+    features: [cart]
+  - pattern: 'client/src/pages/(checkout|order-confirmation).*'
+    features: [checkout]
+  - pattern: 'client/src/pages/.*'
+    features: [info-pages, navigation]
+  - pattern: 'client/src/contexts/.*'
+    features: [cart, checkout]
+  - pattern: 'server/.*|shared/.*'
+    features: [ALL]            # backend / schema changes → full regression
+  - pattern: 'qa/tests/.*'
+    features: [ALL]
+  - pattern: 'package(-lock)?\.json|vite\.config\.ts|tsconfig\.json'
+    features: [ALL]
+
+# ── Quality gates ────────────────────────────────────────────────────────────
+gates:
+  block_on_priorities: [P0, P1]   # PR check fails if a P0/P1 test fails
+  pass_rate_green: 90
+  pass_rate_yellow: 75
+
+# ── Hybrid mode: TestMu GitHub App ──────────────────────────────────────────
+# The GitHub App handles NEW test generation for the diff (+ semantic
+# similar-test detection). This pipeline re-runs the IMPACTED EXISTING
+# regression suite and produces the evidence pack. Together = full coverage.
+github_app:
+  auto_invoke: true
+  trigger_comment: "@KaneAI Validate this PR"

@@ -1,0 +1,102 @@
+{
+  "suite": "shoestore-regression",
+  "description": "Source of truth linking local kane-cli testmd files to Test Manager test cases. tm_test_case_id is filled by the qa-suite-sync workflow after authoring/upload.",
+  "updated_at": null,
+  "tests": [
+    {
+      "id": "REG-001",
+      "file": "qa/tests/01_homepage_smoke_test.md",
+      "title": "Homepage loads with hero, navigation and product grid",
+      "features": [
+        "navigation",
+        "catalog"
+      ],
+      "priority": "P1",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-002",
+      "file": "qa/tests/02_search_test.md",
+      "title": "Product search returns relevant results",
+      "features": [
+        "search"
+      ],
+      "priority": "P1",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-003",
+      "file": "qa/tests/03_category_filter_test.md",
+      "title": "Category and gender filters narrow the catalog",
+      "features": [
+        "catalog",
+        "filters"
+      ],
+      "priority": "P2",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-004",
+      "file": "qa/tests/04_product_detail_test.md",
+      "title": "Product detail shows name, price, sizes and description",
+      "features": [
+        "product-detail",
+        "catalog"
+      ],
+      "priority": "P1",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-005",
+      "file": "qa/tests/05_add_to_cart_test.md",
+      "title": "Add to cart updates cart count and slideout contents",
+      "features": [
+        "cart"
+      ],
+      "priority": "P0",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-006",
+      "file": "qa/tests/06_cart_update_remove_test.md",
+      "title": "Cart quantity update and item removal recalculate totals",
+      "features": [
+        "cart"
+      ],
+      "priority": "P1",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-007",
+      "file": "qa/tests/07_checkout_happy_path_test.md",
+      "title": "Checkout with valid shipping and test card reaches order confirmation",
+      "features": [
+        "checkout",
+        "cart"
+      ],
+      "priority": "P0",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-008",
+      "file": "qa/tests/08_checkout_validation_test.md",
+      "title": "Checkout form rejects invalid payment and missing required fields",
+      "features": [
+        "checkout"
+      ],
+      "priority": "P2",
+      "tm_test_case_id": null
+    },
+    {
+      "id": "REG-009",
+      "file": "qa/tests/09_info_pages_test.md",
+      "title": "Informational pages (About, Size Guide, Returns, Contact) render",
+      "features": [
+        "info-pages",
+        "navigation"
+      ],
+      "priority": "P3",
+      "tm_test_case_id": null
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+# PR impact regression (hybrid with the TestMu GitHub App):
+#   • This workflow  → re-runs IMPACTED EXISTING regression tests against the
+#     PR's own code (booted on the runner, exposed via LambdaTest Tunnel),
+#     builds evidence packs, posts a sticky PR comment, gates on P0/P1.
+#   • Self-heal      → failed tests are re-authored by kane-cli against the
+#     PR's code; if the fresh authoring passes, it was TEST DRIFT — the
+#     updated test is committed back to the PR branch and doesn't block.
+#   • TestMu GitHub App → generates NEW tests for the diff + adds semantically
+#     similar existing tests (triggered by the @KaneAI comment below).
+name: QA · PR Impact Regression
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write        # self-heal commits refreshed tests to the PR branch
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: qa-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      LT_USERNAME: ${{ secrets.LT_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+      TM_PROJECT_ID: ${{ vars.TM_PROJECT_ID }}
+      TM_FOLDER_ID: ${{ vars.TM_FOLDER_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}   # head branch, so self-heal can push back
+          fetch-depth: 0   # full history for git diff vs base
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install pipeline dependencies
+        run: pip install -r qa/requirements.txt -q
+
+      - name: Change-impact analysis
+        id: impact
+        run: python qa/scripts/impact_analysis.py
+
+      - name: Invoke TestMu GitHub App for NEW test generation
+        if: steps.impact.outputs.scope != 'none'
+        continue-on-error: true
+        run: |
+          gh pr comment "$PR_NUMBER" --body "@KaneAI Validate this PR" \
+            --repo "$GITHUB_REPOSITORY" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Boot app under test
+        if: steps.impact.outputs.scope != 'none'
+        run: |
+          npm ci
+          (npm run dev &> app.log &)
+          npx wait-on http://localhost:5000 --timeout 120000
+          echo "App is up."
+
+      - name: Start LambdaTest Tunnel
+        if: steps.impact.outputs.scope != 'none'
+        run: |
+          curl -fsSL -o LT_Linux.zip https://downloads.lambdatest.com/tunnel/v3/linux/64bit/LT_Linux.zip
+          unzip -o -q LT_Linux.zip
+          # --env ht-prod is REQUIRED for the tunnel to be visible to HyperExecute;
+          # without it HyperExecute's tunnel-active check fails (HTTP 500
+          # "Failed to check if tunnel is active").
+          ./LT --user "$LT_USERNAME" --key "$LT_ACCESS_KEY" \
+               --env ht-prod \
+               --tunnelName "qa-pr-${PR_NUMBER}" &> tunnel.log &
+          # Tunnel v3.x prints "You can start testing now"; older builds printed
+          # "Secure connection established". Accept either as the ready signal.
+          READY='Secure connection established|You can start testing now'
+          for i in $(seq 1 30); do
+            grep -qE "$READY" tunnel.log && break
+            sleep 2
+          done
+          grep -qE "$READY" tunnel.log \
+            || { echo "Tunnel failed to start"; tail -50 tunnel.log; exit 1; }
+          echo "Tunnel qa-pr-${PR_NUMBER} is up."
+
+      - name: Run impacted regression on HyperExecute (via tunnel)
+        if: steps.impact.outputs.scope != 'none'
+        run: |
+          REPLACE_FROM=$(python -c "import sys; sys.path.insert(0,'qa/scripts'); from lt_client import load_config; print(load_config()['app']['target_url'])")
+          python qa/scripts/trigger_run.py \
+            --mode impacted \
+            --test-ids "${{ steps.impact.outputs.test_ids }}" \
+            --title "PR #${PR_NUMBER} impact regression · ${{ github.event.pull_request.title }}" \
+            --tunnel "qa-pr-${PR_NUMBER}" \
+            --replace-url "${REPLACE_FROM}=http://localhost:5000"
+
+      - name: Build evidence packs for failures
+        if: always() && steps.impact.outputs.scope != 'none'
+        run: python qa/scripts/evidence_pack.py
+
+      - name: Self-heal — re-author failed tests against PR code
+        if: always() && steps.impact.outputs.scope != 'none'
+        run: |
+          FAILED=$(python -c "import json,sys; d=json.load(open('reports/bugs.json')); print(len(d.get('bugs',[])))" 2>/dev/null || echo 0)
+          if [ "$FAILED" -eq 0 ]; then
+            echo "No failures — skipping self-heal."
+            exit 0
+          fi
+          echo "$FAILED failure(s) — attempting self-heal via kane-cli re-authoring."
+          npm install -g @testmuai/kane-cli
+          kane-cli login --username "$LT_USERNAME" --access-key "$LT_ACCESS_KEY"
+          kane-cli config project "$TM_PROJECT_ID"
+          kane-cli config folder "$TM_FOLDER_ID"
+          python qa/scripts/heal_suite.py --base-url "http://localhost:5000"
+
+      - name: Commit healed tests back to the PR branch
+        if: always() && steps.impact.outputs.scope != 'none'
+        run: |
+          HEALED=$(python -c "import json; d=json.load(open('reports/heal.json')); print(len(d.get('healed',[])))" 2>/dev/null || echo 0)
+          if [ "$HEALED" -eq 0 ]; then
+            echo "Nothing healed — no commit."
+            exit 0
+          fi
+          git config user.name "agentic-qa-bot"
+          git config user.email "agentic-qa@users.noreply.github.com"
+          git add -A qa
+          git diff --cached --quiet || {
+            git commit -m "chore(qa): self-heal — re-authored ${HEALED} drifted test(s) against PR code [skip ci]"
+            git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          }
+
+      - name: Report — sticky PR comment + quality gate
+        if: always() && steps.impact.outputs.scope != 'none'
+        run: python qa/scripts/report.py --mode pr
+
+      - name: Comment when no regression impact
+        if: steps.impact.outputs.scope == 'none'
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "🧪 **Agentic QA:** no existing regression tests are impacted by this change. The TestMu GitHub App can still generate fresh tests — comment \`@KaneAI Validate this PR\` if needed."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-evidence-pr-${{ github.event.pull_request.number }}
+          path: |
+            reports/
+            app.log
+            tunnel.log
+          retention-days: 14
