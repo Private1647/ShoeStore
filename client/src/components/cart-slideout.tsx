@@ -6,6 +6,8 @@ import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/contexts/cart-context";
 import { SlotProductHighlight } from "@/components/slot-components";
 
+// QA pipeline validation: harmless touch to exercise PR-impact regression
+// (cart-slideout → cart feature → REG-005/006/007). No behavior change.
 export default function CartSlideout() {
   const [, navigate] = useLocation();
   const { 
@@ -126,7 +128,7 @@ export default function CartSlideout() {
                   navigate("/checkout");
                 }}
               >
-                Proceed to Checkout
+                Continue to Checkout
               </Button>
             </div>
           )}
